@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrolleySort</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f5f6f8; max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 40px; }
+
+    /* Header */
+    #header { background: #1a1a2e; padding: 18px 20px 14px; }
+    #header-inner { display: flex; justify-content: space-between; align-items: center; }
+    #logo { font-size: 20px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+    #logo-sub { font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+    #mode-tabs { display: flex; background: rgba(255,255,255,0.1); border-radius: 8px; padding: 3px; gap: 3px; }
+    .mode-tab { border: none; background: transparent; color: rgba(255,255,255,0.6); padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .mode-tab.active { background: #2ecc71; color: #fff; }
+
+    /* Input card */
+    .input-card { background: #fff; padding: 16px 20px; border-bottom: 1px solid #eee; }
+    .input-row { display: flex; gap: 8px; }
+    .input-row input { flex: 1; border: 1.5px solid #e0e0e0; border-radius: 10px; padding: 10px 14px; font-size: 15px; outline: none; font-family: inherit; }
+    .input-row input:focus { border-color: #2ecc71; }
+    .btn-add { background: #2ecc71; color: #fff; border: none; border-radius: 10px; padding: 10px 20px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .hint { margin-top: 7px; font-size: 11px; color: #bbb; }
+
+    /* Progress */
+    #progress-wrap { background: #fff; padding: 12px 20px 10px; border-bottom: 1px solid #eee; display: none; }
+    #progress-bar { height: 4px; background: #eee; border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
+    #progress-fill { height: 100%; background: #2ecc71; border-radius: 4px; transition: width 0.3s; }
+    #progress-label { font-size: 12px; color: #888; font-weight: 600; }
+
+    /* Items */
+    .item { display: flex; align-items: center; gap: 12px; padding: 13px 20px; background: #fff; border-bottom: 1px solid #f0f0f0; }
+    .item.done { opacity: 0.4; background: #fafafa; }
+    .checkbox { width: 24px; height: 24px; border-radius: 7px; border: 2px solid #ddd; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 13px; font-weight: 700; color: #fff; }
+    .checkbox.checked { background: #2ecc71; border-color: #2ecc71; }
+    .item-body { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .item-name { font-size: 15px; color: #222; font-weight: 500; }
+    .item-name.struck { text-decoration: line-through; }
+    .item-num { font-size: 11px; color: #ccc; font-weight: 600; flex-shrink: 0; }
+    .btn-remove { background: none; border: none; font-size: 22px; color: #ddd; cursor: pointer; padding: 0 2px; line-height: 1; flex-shrink: 0; }
+    .btn-add-map { background: none; border: 1px solid #2ecc71; color: #2ecc71; border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+
+    /* Unknown header */
+    #unknown-header { padding: 10px 20px 6px; font-size: 12px; font-weight: 700; color: #f39c12; background: #fffdf5; border-top: 1px solid #fdebd0; border-bottom: 1px solid #fdebd0; display: none; }
+
+    /* Actions */
+    #actions { display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid #f0f0f0; }
+    .btn-action { background: none; border: none; font-size: 13px; color: #999; cursor: pointer; padding: 4px 0; font-weight: 600; }
+    .btn-action.red { color: #e74c3c; }
+
+    /* Empty */
+    #empty { text-align: center; padding: 64px 40px; }
+    #empty-icon { font-size: 48px; margin-bottom: 14px; }
+    #empty-title { font-size: 17px; font-weight: 700; color: #333; margin-bottom: 8px; }
+    #empty-text { font-size: 14px; color: #999; line-height: 1.6; }
+
+    /* Manage */
+    .manage-title-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+    .manage-title { font-size: 16px; font-weight: 800; color: #1a1a2e; }
+    .manage-count { font-size: 12px; color: #aaa; font-weight: 600; }
+    .manage-desc { font-size: 12px; color: #bbb; margin-bottom: 12px; }
+    .master-item { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #f0f0f0; background: #fff; }
+    .master-num { font-size: 11px; color: #ccc; font-weight: 700; width: 22px; text-align: right; flex-shrink: 0; }
+    .master-name { flex: 1; font-size: 15px; color: #222; font-weight: 500; }
+    .move-btns { display: flex; flex-direction: column; gap: 1px; flex-shrink: 0; }
+    .btn-move { background: #f0f0f0; border: none; border-radius: 4px; width: 28px; height: 22px; font-size: 12px; cursor: pointer; color: #888; line-height: 1; display: flex; align-items: center; justify-content: center; }
+    .btn-move:active { background: #2ecc71; color: #fff; }
+    .btn-master-remove { background: none; border: none; font-size: 22px; color: #ddd; cursor: pointer; padding: 0 2px; }
+
+    /* Toast */
+    #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; font-weight: 600; z-index: 999; pointer-events: none; white-space: nowrap; opacity: 0; transition: opacity 0.2s; }
+    #toast.show { opacity: 1; }
+
+    /* Loading/Error */
+    #overlay { position: fixed; inset: 0; background: #f5f6f8; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; z-index: 100; }
+    #overlay-icon { font-size: 48px; }
+    #overlay-msg { font-size: 14px; color: #888; }
+    #overlay-err { font-size: 14px; color: #e74c3c; text-align: center; padding: 0 32px; }
+    #btn-retry { background: #2ecc71; color: #fff; border: none; border-radius: 10px; padding: 10px 28px; font-size: 15px; font-weight: 700; cursor: pointer; display: none; margin-top: 8px; }
+
+    #shop-view, #manage-view { display: none; }
+
+    /* Picker modal */
+    #picker-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; }
+    #picker-modal { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: #fff; border-radius: 20px 20px 0 0; padding: 0 0 40px; max-height: 80vh; display: flex; flex-direction: column; z-index: 201; }
+    #picker-header { padding: 16px 20px 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    #picker-title { font-size: 16px; font-weight: 800; color: #1a1a2e; }
+    #btn-picker-close { background: none; border: none; font-size: 24px; color: #aaa; cursor: pointer; }
+    #picker-search { margin: 10px 16px; padding: 9px 14px; border: 1.5px solid #e0e0e0; border-radius: 10px; font-size: 14px; outline: none; font-family: inherit; }
+    #picker-search:focus { border-color: #2ecc71; }
+    #picker-grid { overflow-y: auto; padding: 8px 16px 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .picker-item { background: #f0f0f0; border: 2px solid transparent; border-radius: 20px; padding: 7px 14px; font-size: 14px; font-weight: 500; cursor: pointer; color: #333; transition: all 0.1s; }
+    .picker-item.selected { background: #e8faf0; border-color: #2ecc71; color: #1a9e52; font-weight: 700; }
+    #picker-footer { padding: 12px 16px 0; border-top: 1px solid #eee; }
+    #btn-picker-add { width: 100%; background: #2ecc71; color: #fff; border: none; border-radius: 10px; padding: 13px; font-size: 15px; font-weight: 700; cursor: pointer; }
+
+    /* Input toolbar */
+    .input-toolbar { display: flex; gap: 6px; margin-top: 8px; }
+    .btn-tool { background: #f0f0f0; border: none; border-radius: 8px; padding: 7px 12px; font-size: 13px; font-weight: 600; color: #555; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+    .btn-tool:active { background: #e0e0e0; }
+    .btn-tool.voice-active { background: #ffe8e8; color: #e74c3c; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="overlay">
+  <div id="overlay-icon">🛒</div>
+  <div id="overlay-msg">Loading your store…</div>
+  <div id="overlay-err"></div>
+  <button id="btn-retry" onclick="init()">Retry</button>
+</div>
+
+<!-- Header -->
+<div id="header">
+  <div id="header-inner">
+    <div>
+      <div id="logo">🛒 TrolleySort</div>
+      <div id="logo-sub">Synced · your store order</div>
+    </div>
+    <div id="mode-tabs">
+      <button class="mode-tab active" onclick="switchMode('shop')">Shop</button>
+      <button class="mode-tab" onclick="switchMode('manage')">Manage</button>
+    </div>
+  </div>
+</div>
+
+<!-- SHOP VIEW -->
+<div id="shop-view">
+  <div class="input-card">
+    <div class="input-row">
+      <input id="shop-input" type="text" placeholder="Add items… milk, bread, onion" />
+      <button class="btn-add" onclick="addToWeek()">Add</button>
+    </div>
+    <div class="input-toolbar">
+      <button class="btn-tool" onclick="openPicker()">☰ Pick from list</button>
+      <button class="btn-tool" id="btn-voice" onclick="toggleVoice()">🎤 Voice</button>
+    </div>
+  </div>
+
+  <div id="progress-wrap">
+    <div id="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
+    <div id="progress-label">0 of 0 picked</div>
+  </div>
+
+  <div id="empty">
+    <div id="empty-icon">🧺</div>
+    <div id="empty-title">This week's list is empty</div>
+    <div id="empty-text">Add items above — they'll sort into your store order automatically</div>
+  </div>
+
+  <div id="known-items"></div>
+  <div id="unknown-header">⚠️ Not in your store map</div>
+  <div id="unknown-items"></div>
+
+  <div id="actions" style="display:none">
+    <button class="btn-action" id="btn-clear-done" onclick="clearDone()"></button>
+    <button class="btn-action red" onclick="clearAll()">Clear all</button>
+  </div>
+</div>
+
+<!-- MANAGE VIEW -->
+<div id="manage-view">
+  <div class="input-card">
+    <div class="manage-title-row">
+      <span class="manage-title">Store map</span>
+      <span class="manage-count" id="master-count">0 items</span>
+    </div>
+    <div class="manage-desc">Items sort in this exact order when you shop · tap × to remove</div>
+    <div class="input-row">
+      <input id="manage-input" type="text" placeholder="New item name…" />
+      <button class="btn-add" onclick="addToMaster()">Add</button>
+    </div>
+  </div>
+  <div id="master-list"></div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Picker Modal -->
+<div id="picker-overlay" onclick="closePicker()"></div>
+<div id="picker-modal">
+  <div id="picker-header">
+    <span id="picker-title">Pick items</span>
+    <button id="btn-picker-close" onclick="closePicker()">×</button>
+  </div>
+  <input id="picker-search" type="text" placeholder="Search items…" oninput="filterPicker(this.value)" />
+  <div id="picker-grid"></div>
+  <div id="picker-footer">
+    <button id="btn-picker-add" onclick="addPickedItems()">Add selected items</button>
+  </div>
+</div>
+
+<script>
+const URL = "https://adtgmykfeaxdiryuvuyn.supabase.co";
+const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkdGdteWtmZWF4ZGlyeXV2dXluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2NzU3NzEsImV4cCI6MjA5ODI1MTc3MX0.bFRdYPoLU_XIJc4ICDJFVllUF7ZsEirCvBm9iyWYCBQ";
+
+const DEFAULT_MASTER = [
+  "Corn","Carrot","Cabbage","Broccoli","Cauliflower","Keera","Beans","Mangetout",
+  "Onion","Potatoes big","Potatoes small","Sweet potato","Coriander","Green chilli",
+  "Garlic","Ginger","Pomegranate","Coconut","Radish","Cucumber","Beetroot",
+  "Bananas","Oranges","Apple","Lemon","Tomato","Peppers","Strawberry","Blueberries",
+  "Blackberries","Plums","Grapes","Curd","Milk","Cheese mozzarella","Unsalted butter",
+  "Chips","Bread","Pitta bread"
+];
+
+let master = [];
+let weekList = [];
+let currentMode = "shop";
+let pollInterval = null;
+let seeding = false;
+
+const headers = {
+  "apikey": KEY,
+  "Authorization": "Bearer " + KEY,
+  "Content-Type": "application/json",
+  "Prefer": "return=representation"
+};
+
+async function dbGet(table) {
+  const order = table === "master_items" ? "position.asc" : "created_at.asc";
+  const res = await fetch(`${URL}/rest/v1/${table}?select=*&order=${order}`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function dbInsertOne(table, row) {
+  const res = await fetch(`${URL}/rest/v1/${table}`, {
+    method: "POST", headers,
+    body: JSON.stringify(row)
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function dbUpdate(table, id, data) {
+  const res = await fetch(`${URL}/rest/v1/${table}?id=eq.${id}`, {
+    method: "PATCH", headers,
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function dbDelete(table, id) {
+  await fetch(`${URL}/rest/v1/${table}?id=eq.${id}`, { method: "DELETE", headers });
+}
+
+async function dbDeleteAll(table) {
+  await fetch(`${URL}/rest/v1/${table}?id=neq.0`, { method: "DELETE", headers });
+}
+
+// ── Init ──
+async function init() {
+  showOverlay("Loading your store…", false);
+  try {
+    const [m, w] = await Promise.all([dbGet("master_items"), dbGet("week_items")]);
+    if (m.length === 0 && !seeding) {
+      seeding = true;
+      showOverlay("Setting up your store map… (first time only)", false);
+      for (let i = 0; i < DEFAULT_MASTER.length; i++) {
+        await dbInsertOne("master_items", { name: DEFAULT_MASTER[i], position: i });
+      }
+      master = await dbGet("master_items");
+      seeding = false;
+    } else {
+      master = m;
+    }
+    weekList = w;
+    hideOverlay();
+    render();
+    startPolling();
+  } catch (e) {
+    showOverlay("", true, "Could not connect to database. Check your internet and try again.");
+  }
+}
+
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(async () => {
+    try {
+      const [m, w] = await Promise.all([dbGet("master_items"), dbGet("week_items")]);
+      master = m;
+      weekList = w;
+      render();
+    } catch {}
+  }, 8000);
+}
+
+// ── Overlay ──
+function showOverlay(msg, showRetry, err) {
+  document.getElementById("overlay").style.display = "flex";
+  document.getElementById("overlay-msg").textContent = msg || "";
+  document.getElementById("overlay-err").textContent = err || "";
+  document.getElementById("btn-retry").style.display = showRetry ? "block" : "none";
+  document.getElementById("shop-view").style.display = "none";
+  document.getElementById("manage-view").style.display = "none";
+}
+
+function hideOverlay() {
+  document.getElementById("overlay").style.display = "none";
+  switchMode(currentMode);
+}
+
+// ── Toast ──
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+// ── Mode ──
+function switchMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll(".mode-tab").forEach((t, i) => {
+    t.classList.toggle("active", (i === 0 && mode === "shop") || (i === 1 && mode === "manage"));
+  });
+  document.getElementById("shop-view").style.display = mode === "shop" ? "block" : "none";
+  document.getElementById("manage-view").style.display = mode === "manage" ? "block" : "none";
+  render();
+}
+
+// ── Fuzzy match ──
+function fuzzyMatch(input, masterName) {
+  const a = input.toLowerCase().trim();
+  const b = masterName.toLowerCase().trim();
+  if (a === b) return true;
+  if (b.includes(a) || a.includes(b)) return true;
+  const aW = a.split(/\s+/), bW = b.split(/\s+/);
+  return aW.some(w => w.length > 2 && bW.some(bw => bw.includes(w) || w.includes(bw)));
+}
+
+function getMasterIdx(itemName) {
+  return master.findIndex(m => fuzzyMatch(itemName, m.name));
+}
+
+// ── Render ──
+function render() {
+  if (currentMode === "shop") renderShop();
+  else renderManage();
+}
+
+function renderShop() {
+  const known = [], unknown = [];
+  for (const item of weekList) {
+    const idx = getMasterIdx(item.name);
+    if (idx !== -1) known.push({ ...item, masterIdx: idx });
+    else unknown.push({ ...item, masterIdx: Infinity });
+  }
+  known.sort((a, b) => a.masterIdx - b.masterIdx);
+
+  const total = weekList.length;
+  const done = weekList.filter(w => w.checked).length;
+
+  // Empty state
+  document.getElementById("empty").style.display = total === 0 ? "block" : "none";
+
+  // Progress
+  const pw = document.getElementById("progress-wrap");
+  pw.style.display = total > 0 ? "block" : "none";
+  document.getElementById("progress-fill").style.width = total > 0 ? (done/total*100)+"%" : "0%";
+  document.getElementById("progress-label").textContent =
+    done === total && total > 0 ? "✅ All done!" : `${done} of ${total} picked`;
+
+  // Known items
+  const knownEl = document.getElementById("known-items");
+  knownEl.innerHTML = known.map(item => `
+    <div class="item ${item.checked ? 'done' : ''}" id="item-${item.id}">
+      <div class="checkbox ${item.checked ? 'checked' : ''}" onclick="toggleCheck('${item.id}', ${item.checked})">
+        ${item.checked ? "✓" : ""}
+      </div>
+      <div class="item-body">
+        <span class="item-name ${item.checked ? 'struck' : ''}">${item.name}</span>
+        <span class="item-num">#${item.masterIdx + 1}</span>
+      </div>
+      <button class="btn-remove" onclick="removeFromWeek('${item.id}')">×</button>
+    </div>
+  `).join("");
+
+  // Unknown items
+  const unknownHeader = document.getElementById("unknown-header");
+  const unknownEl = document.getElementById("unknown-items");
+  unknownHeader.style.display = unknown.length > 0 ? "block" : "none";
+  unknownEl.innerHTML = unknown.map(item => `
+    <div class="item ${item.checked ? 'done' : ''}" id="item-${item.id}" style="border-left:3px solid #f39c12">
+      <div class="checkbox ${item.checked ? 'checked' : ''}" onclick="toggleCheck('${item.id}', ${item.checked})">
+        ${item.checked ? "✓" : ""}
+      </div>
+      <div class="item-body">
+        <span class="item-name ${item.checked ? 'struck' : ''}">${item.name}</span>
+        <button class="btn-add-map" onclick="addToMap('${item.id}', '${item.name}')">+ Add to map</button>
+      </div>
+      <button class="btn-remove" onclick="removeFromWeek('${item.id}')">×</button>
+    </div>
+  `).join("");
+
+  // Actions
+  const actions = document.getElementById("actions");
+  actions.style.display = total > 0 ? "flex" : "none";
+  const btnDone = document.getElementById("btn-clear-done");
+  btnDone.style.display = done > 0 ? "inline" : "none";
+  btnDone.textContent = `Remove done (${done})`;
+}
+
+function renderManage() {
+  document.getElementById("master-count").textContent = master.length + " items";
+  document.getElementById("master-list").innerHTML = master.map((item, idx) => `
+    <div class="master-item">
+      <span class="master-num">${idx + 1}</span>
+      <span class="master-name">${item.name}</span>
+      <div class="move-btns">
+        <button class="btn-move" onclick="moveItem(${idx}, -1)" ${idx === 0 ? 'disabled style="opacity:0.2"' : ''}>▲</button>
+        <button class="btn-move" onclick="moveItem(${idx}, 1)" ${idx === master.length - 1 ? 'disabled style="opacity:0.2"' : ''}>▼</button>
+      </div>
+      <button class="btn-master-remove" onclick="removeFromMaster(${item.id})">×</button>
+    </div>
+  `).join("");
+}
+
+async function moveItem(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= master.length) return;
+  // Swap in local array
+  [master[idx], master[newIdx]] = [master[newIdx], master[idx]];
+  renderManage();
+  // Save new positions to Supabase
+  try {
+    await Promise.all([
+      dbUpdate("master_items", master[idx].id, { position: idx }),
+      dbUpdate("master_items", master[newIdx].id, { position: newIdx })
+    ]);
+  } catch { toast("Failed to save order"); }
+}
+
+// ── Shop actions ──
+async function addToWeek() {
+  const input = document.getElementById("shop-input");
+  const parts = input.value.split(/[,\n]+/).map(s => s.trim()).filter(Boolean);
+  if (!parts.length) return;
+  const existing = new Set(weekList.map(w => w.name.toLowerCase()));
+  const newNames = parts.filter(p => !existing.has(p.toLowerCase()));
+  if (!newNames.length) { toast("Already on the list"); return; }
+  input.value = "";
+  try {
+    for (const name of newNames) {
+      const inserted = await dbInsertOne("week_items", { name, checked: false });
+      weekList.push(inserted[0]);
+    }
+    toast(`Added ${newNames.length} item${newNames.length !== 1 ? "s" : ""}`);
+    render();
+  } catch { toast("Failed to add"); }
+}
+
+function toggleCheck(id, wasChecked) {
+  const newVal = !wasChecked;
+  // Update data
+  weekList = weekList.map(w => w.id === id ? { ...w, checked: newVal } : w);
+  // Update DOM directly — no full re-render
+  const itemEl = document.getElementById("item-" + id);
+  if (itemEl) {
+    const cb = itemEl.querySelector(".checkbox");
+    const name = itemEl.querySelector(".item-name");
+    if (newVal) {
+      itemEl.classList.add("done");
+      cb.classList.add("checked");
+      cb.textContent = "✓";
+      name.classList.add("struck");
+    } else {
+      itemEl.classList.remove("done");
+      cb.classList.remove("checked");
+      cb.textContent = "";
+      name.classList.remove("struck");
+    }
+    // Update onclick to reflect new state
+    cb.setAttribute("onclick", "toggleCheck('" + id + "', " + newVal + ")");
+  }
+  // Update progress bar only
+  updateProgress();
+  // Save in background
+  dbUpdate("week_items", id, { checked: newVal }).catch(() => {});
+}
+
+function updateProgress() {
+  const total = weekList.length;
+  const done = weekList.filter(w => w.checked).length;
+  const pw = document.getElementById("progress-wrap");
+  pw.style.display = total > 0 ? "block" : "none";
+  document.getElementById("progress-fill").style.width = total > 0 ? (done/total*100)+"%" : "0%";
+  document.getElementById("progress-label").textContent =
+    done === total && total > 0 ? "✅ All done!" : done + " of " + total + " picked";
+  const btnDone = document.getElementById("btn-clear-done");
+  if (btnDone) {
+    btnDone.style.display = done > 0 ? "inline" : "none";
+    btnDone.textContent = "Remove done (" + done + ")";
+  }
+  document.getElementById("actions").style.display = total > 0 ? "flex" : "none";
+}
+
+function removeFromWeek(id) {
+  weekList = weekList.filter(w => w.id !== id);
+  render();
+  dbDelete("week_items", id).catch(() => {});
+}
+
+async function clearDone() {
+  const ids = weekList.filter(w => w.checked).map(w => w.id);
+  weekList = weekList.filter(w => !w.checked);
+  render();
+  try { await Promise.all(ids.map(id => dbDelete("week_items", id))); toast("Cleared done items"); }
+  catch {}
+}
+
+async function clearAll() {
+  weekList = [];
+  render();
+  try {
+    await fetch(`${URL}/rest/v1/week_items?checked=eq.true`, { method: "DELETE", headers });
+    await fetch(`${URL}/rest/v1/week_items?checked=eq.false`, { method: "DELETE", headers });
+    toast("List cleared");
+  } catch {}
+}
+
+async function addToMap(id, name) {
+  const position = master.length;
+  try {
+    const inserted = await dbInsertOne("master_items", { name, position });
+    master.push(inserted[0]);
+    toast(`"${name}" added to store map`);
+    render();
+  } catch { toast("Failed to add to map"); }
+}
+
+// ── Manage actions ──
+async function addToMaster() {
+  const input = document.getElementById("manage-input");
+  const name = input.value.trim();
+  if (!name || master.some(m => m.name.toLowerCase() === name.toLowerCase())) {
+    toast("Already in store map"); return;
+  }
+  try {
+    const inserted = await dbInsertOne("master_items", { name, position: master.length });
+    master.push(inserted[0]);
+    input.value = "";
+    toast(`"${name}" added`);
+    render();
+  } catch { toast("Failed to add"); }
+}
+
+async function removeFromMaster(id) {
+  master = master.filter(m => m.id !== id);
+  render();
+  try { await dbDelete("master_items", id); } catch {}
+}
+
+// ── Picker ──
+let pickedItems = new Set();
+let pickerFilter = "";
+
+function openPicker() {
+  pickedItems = new Set();
+  pickerFilter = "";
+  document.getElementById("picker-search").value = "";
+  document.getElementById("picker-overlay").style.display = "block";
+  document.getElementById("picker-modal").style.display = "flex";
+  document.getElementById("picker-modal").style.flexDirection = "column";
+  renderPicker();
+  setTimeout(() => document.getElementById("picker-search").focus(), 100);
+}
+
+function closePicker() {
+  pickedItems = new Set();
+  document.getElementById("picker-overlay").style.display = "none";
+  document.getElementById("picker-modal").style.display = "none";
+}
+
+function filterPicker(val) {
+  pickerFilter = val.toLowerCase();
+  renderPicker();
+}
+
+function renderPicker() {
+  const existing = new Set(weekList.map(w => w.name.toLowerCase()));
+  const filtered = master.filter(m =>
+    !existing.has(m.name.toLowerCase()) &&
+    (pickerFilter === "" || m.name.toLowerCase().includes(pickerFilter))
+  );
+  const grid = document.getElementById("picker-grid");
+  grid.innerHTML = filtered.map(m => `
+    <div class="picker-item ${pickedItems.has(m.name) ? 'selected' : ''}"
+         onclick="togglePick('${m.name}', this)">
+      ${m.name}
+    </div>
+  `).join("");
+  const count = pickedItems.size;
+  document.getElementById("btn-picker-add").textContent =
+    count > 0 ? "Add " + count + " item" + (count !== 1 ? "s" : "") : "Add selected items";
+}
+
+function togglePick(name, el) {
+  if (pickedItems.has(name)) {
+    pickedItems.delete(name);
+    el.classList.remove("selected");
+  } else {
+    pickedItems.add(name);
+    el.classList.add("selected");
+  }
+  const count = pickedItems.size;
+  document.getElementById("btn-picker-add").textContent =
+    count > 0 ? "Add " + count + " item" + (count !== 1 ? "s" : "") : "Add selected items";
+}
+
+async function addPickedItems() {
+  if (pickedItems.size === 0) return;
+  const names = [...pickedItems];
+  closePicker();
+  try {
+    for (const name of names) {
+      const inserted = await dbInsertOne("week_items", { name, checked: false });
+      weekList.push(inserted[0]);
+    }
+    toast("Added " + names.length + " item" + (names.length !== 1 ? "s" : ""));
+    render();
+  } catch { toast("Failed to add items"); }
+}
+
+// ── Voice ──
+let recognition = null;
+let voiceActive = false;
+
+function toggleVoice() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    toast("Voice not supported on this browser");
+    return;
+  }
+  if (voiceActive) {
+    stopVoice();
+    return;
+  }
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = "en-GB";
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => {
+    voiceActive = true;
+    document.getElementById("btn-voice").classList.add("voice-active");
+    document.getElementById("btn-voice").textContent = "🎤 Listening…";
+  };
+
+  recognition.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    // Each word/phrase separated by "and" or comma becomes an item
+    const parts = transcript.split(/\band\b|,/i).map(s => s.trim()).filter(Boolean);
+    document.getElementById("shop-input").value = parts.join(", ");
+    stopVoice();
+    addToWeek();
+  };
+
+  recognition.onerror = () => { stopVoice(); toast("Couldn't hear that, try again"); };
+  recognition.onend = () => stopVoice();
+  recognition.start();
+}
+
+function stopVoice() {
+  voiceActive = false;
+  if (recognition) { try { recognition.stop(); } catch {} recognition = null; }
+  const btn = document.getElementById("btn-voice");
+  btn.classList.remove("voice-active");
+  btn.textContent = "🎤 Voice";
+}
+
+// ── Keyboard ──
+document.getElementById("shop-input").addEventListener("keydown", e => { if (e.key === "Enter") addToWeek(); });
+document.getElementById("manage-input").addEventListener("keydown", e => { if (e.key === "Enter") addToMaster(); });
+
+// ── Start ──
+init();
+</script>
+</body>
+</html>
