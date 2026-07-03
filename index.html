@@ -527,7 +527,7 @@ async function moveItem(id, dir) {
 
 async function removeFromMaster(id) {
   id = Number(id);
-  master = master.filter(m => m.id !== id);
+  master = master.filter(m => Number(m.id) !== id);
   rebuildShopList();
   renderManage();
   dbDelete("master_items", id).catch(() => {});
@@ -780,27 +780,51 @@ function openPicker() {
   pickedItems = new Set();
   pickerFilter = "";
   document.getElementById("picker-search").value = "";
-  showModal("picker");
+  showModal("picker-modal");
   renderPicker();
   setTimeout(() => document.getElementById("picker-search").focus(), 100);
 }
-function closePicker() { pickedItems = new Set(); hideModal("picker"); }
+function closePicker() { pickedItems = new Set(); hideModal("picker-modal"); }
 function filterPicker(val) { pickerFilter = val.toLowerCase(); renderPicker(); }
 
 function renderPicker() {
-  const existing = new Set(weekList.map(w => w.name.toLowerCase()));
+  const existing = new Set(weekList.map(w => w.name.toLowerCase().trim()));
   const filtered = master.filter(m =>
-    !existing.has(m.name.toLowerCase()) &&
+    !existing.has(m.name.toLowerCase().trim()) &&
     (pickerFilter === "" || m.name.toLowerCase().includes(pickerFilter))
   );
-  document.getElementById("picker-grid").innerHTML = filtered.map(m => `
-    <div class="picker-item ${pickedItems.has(m.name) ? 'selected' : ''}" onclick="togglePick('${m.name.replace(/'/g, "\\'")}', this)">${m.name}</div>
-  `).join("");
+  const byShop = {};
+  filtered.forEach(m => {
+    const s = m.shop || "Asda";
+    if (!byShop[s]) byShop[s] = [];
+    byShop[s].push(m);
+  });
+  const grid = document.getElementById("picker-grid");
+  grid.innerHTML = "";
+  Object.keys(byShop).sort().forEach(shopName => {
+    const label = document.createElement("div");
+    label.style.cssText = "width:100%;font-size:11px;font-weight:700;color:#999;text-transform:uppercase;padding:10px 2px 4px;flex-basis:100%";
+    label.textContent = shopName;
+    grid.appendChild(label);
+    byShop[shopName].forEach(m => {
+      const el = document.createElement("div");
+      el.className = "picker-item" + (pickedItems.has(m.name) ? " selected" : "");
+      el.textContent = m.name;
+      el.onclick = () => togglePick(m.name, el);
+      grid.appendChild(el);
+    });
+  });
+  updatePickerBtn();
   updatePickerBtn();
 }
 function togglePick(name, el) {
-  if (pickedItems.has(name)) { pickedItems.delete(name); el.classList.remove("selected"); }
-  else { pickedItems.add(name); el.classList.add("selected"); }
+  if (pickedItems.has(name)) {
+    pickedItems.delete(name);
+    if (el) el.classList.remove("selected");
+  } else {
+    pickedItems.add(name);
+    if (el) el.classList.add("selected");
+  }
   updatePickerBtn();
 }
 function updatePickerBtn() {
@@ -811,14 +835,15 @@ async function addPickedItems() {
   if (pickedItems.size === 0) return;
   const names = [...pickedItems];
   closePicker();
+  toast("Adding " + names.length + " item" + (names.length !== 1 ? "s" : "") + "…");
   try {
     for (const name of names) {
       const inserted = await dbInsertOne("week_items", { name, checked: false });
-      weekList.push(inserted[0]);
+      if (inserted && inserted[0]) weekList.push(inserted[0]);
     }
     toast("Added " + names.length + " item" + (names.length !== 1 ? "s" : ""));
     render();
-  } catch { toast("Failed to add items"); }
+  } catch (e) { toast("Failed to add: " + e.message); }
 }
 
 let recognition = null;
