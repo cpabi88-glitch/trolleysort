@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrolleySort</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { touch-action: manipulation; }
+    button:active, .insert-option:active, .picker-item:active { opacity: 0.6; transform: scale(0.97); }
+    button { -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f5f6f8; max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 40px; }
+
+    #header { background: #1a1a2e; padding: 18px 20px 14px; }
+    #header-inner { display: flex; justify-content: space-between; align-items: center; }
+    #logo { font-size: 20px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+    #logo-sub { font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+    #mode-tabs { display: flex; background: rgba(255,255,255,0.1); border-radius: 8px; padding: 3px; gap: 3px; }
+    .mode-tab { border: none; background: transparent; color: rgba(255,255,255,0.6); padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .mode-tab.active { background: #2ecc71; color: #fff; }
+
+    #shop-tabs-wrap { background: #fff; padding: 12px 16px; border-bottom: 1px solid #eee; display: flex; gap: 8px; overflow-x: auto; white-space: nowrap; }
+    .shop-tab { border: 1.5px solid #e0e0e0; background: #fff; border-radius: 20px; padding: 7px 16px; font-size: 13px; font-weight: 600; color: #555; cursor: pointer; flex-shrink: 0; }
+    .shop-tab.active { background: #1a1a2e; border-color: #1a1a2e; color: #fff; }
+    .shop-tab.add-shop { border-style: dashed; color: #2ecc71; border-color: #2ecc71; }
+
+    .input-card { background: #fff; padding: 16px 20px; border-bottom: 1px solid #eee; }
+    .input-row { display: flex; gap: 8px; }
+    .input-row input { flex: 1; border: 1.5px solid #e0e0e0; border-radius: 10px; padding: 10px 14px; font-size: 15px; outline: none; font-family: inherit; }
+    .input-row input:focus { border-color: #2ecc71; }
+    .btn-add { background: #2ecc71; color: #fff; border: none; border-radius: 10px; padding: 10px 20px; font-size: 15px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+    .hint { margin-top: 7px; font-size: 11px; color: #bbb; }
+    .input-toolbar { display: flex; gap: 6px; margin-top: 8px; }
+    .btn-tool { background: #f0f0f0; border: none; border-radius: 8px; padding: 7px 12px; font-size: 13px; font-weight: 600; color: #555; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+    .btn-tool:active { background: #e0e0e0; }
+    .btn-tool.voice-active { background: #ffe8e8; color: #e74c3c; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+
+    #progress-wrap { background: #fff; padding: 12px 20px 10px; border-bottom: 1px solid #eee; display: none; }
+    #progress-bar { height: 4px; background: #eee; border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
+    #progress-fill { height: 100%; background: #2ecc71; border-radius: 4px; transition: width 0.3s; }
+    #progress-label { font-size: 12px; color: #888; font-weight: 600; }
+
+    .shop-group-header { display: flex; align-items: center; gap: 8px; padding: 10px 20px; background: #eef1f5; border-top: 1px solid #e2e6eb; border-bottom: 1px solid #e2e6eb; }
+    .shop-group-name { font-weight: 800; font-size: 13px; color: #1a1a2e; letter-spacing: 0.3px; text-transform: uppercase; }
+    .shop-group-count { font-size: 11px; color: #999; background: #fff; border-radius: 10px; padding: 1px 8px; }
+
+    .item { display: flex; align-items: center; gap: 12px; padding: 13px 20px; background: #fff; border-bottom: 1px solid #f0f0f0; }
+    .item.done { opacity: 0.4; background: #fafafa; }
+    .checkbox { width: 24px; height: 24px; border-radius: 7px; border: 2px solid #ddd; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 13px; font-weight: 700; color: #fff; }
+    .checkbox.checked { background: #2ecc71; border-color: #2ecc71; }
+    .item-body { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .item-name { font-size: 15px; color: #222; font-weight: 500; }
+    .item-name.struck { text-decoration: line-through; }
+    .item-num { font-size: 11px; color: #ccc; font-weight: 600; flex-shrink: 0; }
+    .btn-remove { background: none; border: none; font-size: 22px; color: #ddd; cursor: pointer; padding: 0 2px; line-height: 1; flex-shrink: 0; }
+    .btn-add-map { background: none; border: 1px solid #2ecc71; color: #2ecc71; border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+
+    #unknown-header { padding: 10px 20px 6px; font-size: 12px; font-weight: 700; color: #f39c12; background: #fffdf5; border-top: 1px solid #fdebd0; border-bottom: 1px solid #fdebd0; display: none; }
+
+    #actions { display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid #f0f0f0; flex-wrap: wrap; }
+    .btn-action { background: none; border: none; font-size: 13px; color: #999; cursor: pointer; padding: 4px 0; font-weight: 600; }
+    .btn-action.red { color: #e74c3c; }
+
+    #empty { text-align: center; padding: 64px 40px; }
+    #empty-icon { font-size: 48px; margin-bottom: 14px; }
+    #empty-title { font-size: 17px; font-weight: 700; color: #333; margin-bottom: 8px; }
+    #empty-text { font-size: 14px; color: #999; line-height: 1.6; }
+
+    .manage-title-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+    .manage-title { font-size: 16px; font-weight: 800; color: #1a1a2e; }
+    .manage-count { font-size: 12px; color: #aaa; font-weight: 600; }
+    .manage-desc { font-size: 12px; color: #bbb; margin-bottom: 12px; }
+    .master-item { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #f0f0f0; background: #fff; }
+    .master-num { font-size: 11px; color: #ccc; font-weight: 700; width: 22px; text-align: right; flex-shrink: 0; }
+    .master-name { flex: 1; font-size: 15px; color: #222; font-weight: 500; }
+    .move-btns { display: flex; flex-direction: column; gap: 1px; flex-shrink: 0; }
+    .btn-move { background: #f0f0f0; border: none; border-radius: 4px; width: 26px; height: 20px; font-size: 11px; cursor: pointer; color: #888; line-height: 1; display: flex; align-items: center; justify-content: center; }
+    .btn-move:active { background: #2ecc71; color: #fff; }
+    .btn-master-remove { background: none; border: none; font-size: 22px; color: #ddd; cursor: pointer; padding: 0 2px; }
+    .btn-move-after { background: #f0f0f0; border: none; border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 600; color: #555; cursor: pointer; flex-shrink: 0; }
+    .btn-move-after:active { background: #1a1a2e; color: #fff; }
+    #btn-add-item-fab { position: sticky; bottom: 12px; margin: 16px; background: #2ecc71; color: #fff; border: none; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 700; cursor: pointer; width: calc(100% - 32px); box-shadow: 0 4px 14px rgba(46,204,113,0.4); }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; }
+    .modal { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: #fff; border-radius: 20px 20px 0 0; padding: 0 0 24px; max-height: 85vh; display: none; flex-direction: column; z-index: 201; }
+    .modal-header { padding: 16px 20px 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-size: 16px; font-weight: 800; color: #1a1a2e; }
+    .btn-modal-close { background: #f0f0f0; border: none; font-size: 20px; color: #666; cursor: pointer; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .modal-body { overflow-y: auto; padding: 16px 20px; flex: 1; }
+    .modal-footer { padding: 12px 20px 0; border-top: 1px solid #eee; }
+    .field-label { font-size: 12px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 6px; margin-top: 16px; }
+    .field-label:first-child { margin-top: 0; }
+    .modal-input { width: 100%; border: 1.5px solid #e0e0e0; border-radius: 10px; padding: 10px 14px; font-size: 15px; outline: none; font-family: inherit; }
+    .modal-input:focus { border-color: #2ecc71; }
+    .shop-choice-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .shop-choice { border: 1.5px solid #e0e0e0; background: #fff; border-radius: 20px; padding: 8px 16px; font-size: 14px; font-weight: 600; color: #555; cursor: pointer; }
+    .shop-choice.selected { background: #2ecc71; border-color: #2ecc71; color: #fff; }
+    .insert-list { max-height: 240px; overflow-y: auto; border: 1px solid #eee; border-radius: 10px; margin-top: 4px; }
+    .insert-option { padding: 10px 14px; font-size: 14px; color: #333; border-bottom: 1px solid #f3f3f3; cursor: pointer; }
+    .insert-option:last-child { border-bottom: none; }
+    .insert-option.selected { background: #e8faf0; color: #1a9e52; font-weight: 700; }
+    .insert-option.at-top { color: #888; font-style: italic; }
+    .btn-modal-save { width: 100%; background: #2ecc71; color: #fff; border: none; border-radius: 10px; padding: 13px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .btn-modal-save:disabled { background: #ccc; cursor: not-allowed; }
+
+    #picker-search { margin: 0 0 4px; padding: 9px 14px; border: 1.5px solid #e0e0e0; border-radius: 10px; font-size: 14px; outline: none; font-family: inherit; width: 100%; }
+    #picker-grid { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 10px; }
+    .picker-item { background: #f0f0f0; border: 2px solid transparent; border-radius: 20px; padding: 7px 14px; font-size: 14px; font-weight: 500; cursor: pointer; color: #333; }
+    .picker-item.selected { background: #e8faf0; border-color: #2ecc71; color: #1a9e52; font-weight: 700; }
+
+    #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; font-weight: 600; z-index: 999; pointer-events: none; white-space: nowrap; opacity: 0; transition: opacity 0.2s; }
+    #toast.show { opacity: 1; }
+
+    #overlay { position: fixed; inset: 0; background: #f5f6f8; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; z-index: 100; }
+    #overlay-icon { font-size: 48px; }
+    #overlay-msg { font-size: 14px; color: #888; }
+    #overlay-err { font-size: 14px; color: #e74c3c; text-align: center; padding: 0 32px; }
+    #btn-retry { background: #2ecc71; color: #fff; border: none; border-radius: 10px; padding: 10px 28px; font-size: 15px; font-weight: 700; cursor: pointer; display: none; margin-top: 8px; }
+
+    #shop-view, #manage-view { display: none; }
+  </style>
+</head>
+<body>
+
+<div id="overlay">
+  <div id="overlay-icon">🛒</div>
+  <div id="overlay-msg">Loading your store…</div>
+  <div id="overlay-err"></div>
+  <button id="btn-retry" onclick="init()">Retry</button>
+</div>
+
+<div id="header">
+  <div id="header-inner">
+    <div>
+      <div id="logo">🛒 TrolleySort</div>
+      <div id="logo-sub">Synced · multi-shop</div>
+    </div>
+    <div id="mode-tabs">
+      <button class="mode-tab active" onclick="switchMode('shop')">Shop</button>
+      <button class="mode-tab" onclick="switchMode('manage')">Manage</button>
+    </div>
+  </div>
+</div>
+
+<div id="shop-view">
+  <div class="input-card">
+    <div class="input-row">
+      <input id="shop-input" type="text" placeholder="Add items… milk, bread, onion" />
+      <button class="btn-add" onclick="addToWeek()">Add</button>
+    </div>
+    <div class="input-toolbar">
+      <button class="btn-tool" onclick="openPicker()">☰ Pick from list</button>
+      <button class="btn-tool" id="btn-voice" onclick="toggleVoice()">🎤 Voice</button>
+    </div>
+    <div class="hint">Comma-separate multiple items · Enter to add</div>
+  </div>
+
+  <div id="progress-wrap">
+    <div id="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
+    <div id="progress-label">0 of 0 picked</div>
+  </div>
+
+  <div id="empty">
+    <div id="empty-icon">🧺</div>
+    <div id="empty-title">This week's list is empty</div>
+    <div id="empty-text">Add items above — they'll sort by shop and aisle automatically</div>
+  </div>
+
+  <div id="shop-groups"></div>
+
+  <div id="unknown-header">⚠️ Not mapped to a shop yet</div>
+  <div id="unknown-items"></div>
+
+  <div id="actions" style="display:none">
+    <button class="btn-action" id="btn-clear-done" style="display:none" onclick="clearDone()"></button>
+    <button class="btn-action" id="btn-clear-flagged" style="display:none" onclick="clearFlagged()"></button>
+    <button class="btn-action red" onclick="clearAll()">Clear all</button>
+  </div>
+</div>
+
+<div id="manage-view">
+  <div id="shop-tabs-wrap"></div>
+  <div class="input-card" style="padding-bottom:8px;">
+    <div class="manage-title-row">
+      <span class="manage-title" id="manage-shop-title">Store map</span>
+      <span class="manage-count" id="master-count">0 items</span>
+    </div>
+    <div class="manage-desc">Tap + to add an item · ▲▼ to nudge order · × to remove</div>
+  </div>
+  <div id="master-list"></div>
+  <button id="btn-add-item-fab" onclick="openAddItemModal()">+ Add item</button>
+</div>
+
+<div class="modal-overlay" id="item-modal-overlay" onclick="closeItemModal()"></div>
+<div class="modal" id="item-modal">
+  <div class="modal-header">
+    <span class="modal-title" id="item-modal-title">Add item</span>
+    <button class="btn-modal-close" onclick="closeBtn(closeItemModal, event)">×</button>
+  </div>
+  <div class="modal-body">
+    <div class="field-label">Item name</div>
+    <input class="modal-input" id="item-modal-name" type="text" placeholder="e.g. Saffron" />
+
+    <div class="field-label">Which shop?</div>
+    <div class="shop-choice-row" id="item-modal-shops"></div>
+
+    <div class="field-label">Insert after (aisle order)</div>
+    <div class="insert-list" id="item-modal-insert-list"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-modal-save" id="item-modal-save-btn" onclick="saveItemModal()">Save</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="shop-modal-overlay" onclick="closeShopModal()"></div>
+<div class="modal" id="shop-modal" style="max-height:280px;">
+  <div class="modal-header">
+    <span class="modal-title">Add a shop</span>
+    <button class="btn-modal-close" onclick="closeBtn(closeShopModal, event)">×</button>
+  </div>
+  <div class="modal-body">
+    <div class="field-label">Shop name</div>
+    <input class="modal-input" id="shop-modal-name" type="text" placeholder="e.g. Tesco" />
+  </div>
+  <div class="modal-footer">
+    <button class="btn-modal-save" onclick="saveNewShop()">Add shop</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="picker-overlay" onclick="closePicker()"></div>
+<div class="modal" id="picker-modal">
+  <div class="modal-header">
+    <span class="modal-title">Pick items</span>
+    <button class="btn-modal-close" onclick="closeBtn(closePicker, event)">×</button>
+  </div>
+  <div class="modal-body">
+    <input id="picker-search" type="text" placeholder="Search items…" oninput="filterPicker(this.value)" />
+    <div id="picker-grid"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-modal-save" id="btn-picker-add" onclick="addPickedItems()">Add selected items</button>
+  </div>
+</div>
+
+<!-- Move After Modal -->
+<div class="modal-overlay" id="move-after-modal-overlay" onclick="closeMoveAfterModal()"></div>
+<div class="modal" id="move-after-modal">
+  <div class="modal-header">
+    <span class="modal-title" id="move-after-title">Move after…</span>
+    <button class="btn-modal-close" onclick="closeBtn(closeMoveAfterModal, event)">×</button>
+  </div>
+  <div class="modal-body">
+    <input class="modal-input" id="move-after-search" type="text" placeholder="Search position…" oninput="filterMoveAfterList(this.value)" style="margin-bottom:10px;" />
+    <div class="insert-list" id="move-after-list"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const URL = "https://adtgmykfeaxdiryuvuyn.supabase.co";
+const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkdGdteWtmZWF4ZGlyeXV2dXluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2NzU3NzEsImV4cCI6MjA5ODI1MTc3MX0.bFRdYPoLU_XIJc4ICDJFVllUF7ZsEirCvBm9iyWYCBQ";
+
+const DEFAULT_MASTER = [
+  "Corn","Carrot","Cabbage","Broccoli","Cauliflower","Keera","Beans","Mangetout",
+  "Onion","Potatoes big","Potatoes small","Sweet potato","Coriander","Green chilli",
+  "Garlic","Ginger","Pomegranate","Coconut","Radish","Cucumber","Beetroot",
+  "Bananas","Oranges","Apple","Lemon","Tomato","Peppers","Strawberry","Blueberries",
+  "Blackberries","Plums","Grapes","Curd","Milk","Cheese mozzarella","Unsalted butter",
+  "Chips","Bread","Pitta bread"
+];
+const DEFAULT_SHOP = "Asda";
+
+let master = [];
+let shops = [];
+let weekList = [];
+let currentMode = "shop";
+let currentManageShop = null;
+let pollInterval = null;
+let seeding = false;
+
+const headers = {
+  "apikey": KEY, "Authorization": "Bearer " + KEY,
+  "Content-Type": "application/json", "Prefer": "return=representation"
+};
+
+async function dbGet(table) {
+  const order = table === "master_items" ? "position.asc" : "created_at.asc";
+  const res = await fetch(`${URL}/rest/v1/${table}?select=*&order=${order}`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function dbInsertOne(table, row) {
+  const res = await fetch(`${URL}/rest/v1/${table}`, { method: "POST", headers, body: JSON.stringify(row) });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function dbUpdate(table, id, data) {
+  const res = await fetch(`${URL}/rest/v1/${table}?id=eq.${id}`, { method: "PATCH", headers, body: JSON.stringify(data) });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function dbDelete(table, id) {
+  await fetch(`${URL}/rest/v1/${table}?id=eq.${id}`, { method: "DELETE", headers });
+}
+
+async function init() {
+  showOverlay("Loading your store…", false);
+  try {
+    const [m, w] = await Promise.all([dbGet("master_items"), dbGet("week_items")]);
+    if (m.length === 0 && !seeding) {
+      seeding = true;
+      showOverlay("Setting up your store map… (first time only)", false);
+      for (let i = 0; i < DEFAULT_MASTER.length; i++) {
+        await dbInsertOne("master_items", { name: DEFAULT_MASTER[i], position: i, shop: DEFAULT_SHOP });
+      }
+      master = await dbGet("master_items");
+      seeding = false;
+    } else {
+      master = m.map(it => ({ ...it, shop: it.shop || DEFAULT_SHOP }));
+    }
+    weekList = w;
+    rebuildShopList();
+    if (!currentManageShop) currentManageShop = shops[0] || DEFAULT_SHOP;
+    hideOverlay();
+    render();
+    startPolling();
+  } catch (e) {
+    showOverlay("", true, "Could not connect: " + e.message);
+  }
+}
+
+function rebuildShopList() {
+  const set = new Set(master.map(m => m.shop || DEFAULT_SHOP));
+  // Keep any shops the user has added that don't have items yet (e.g. just created, empty)
+  shops.forEach(s => set.add(s));
+  if (set.size === 0) set.add(DEFAULT_SHOP);
+  shops = [...set];
+}
+
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(async () => {
+    if (modalOpen) return; // Don't re-render while user is interacting
+    try {
+      const [m, w] = await Promise.all([dbGet("master_items"), dbGet("week_items")]);
+      master = m.map(it => ({ ...it, shop: it.shop || DEFAULT_SHOP }));
+      rebuildShopList();
+      weekList = w;
+      render();
+    } catch {}
+  }, 8000);
+}
+
+function showOverlay(msg, showRetry, err) {
+  document.getElementById("overlay").style.display = "flex";
+  document.getElementById("overlay-msg").textContent = msg || "";
+  document.getElementById("overlay-err").textContent = err || "";
+  document.getElementById("btn-retry").style.display = showRetry ? "block" : "none";
+  document.getElementById("shop-view").style.display = "none";
+  document.getElementById("manage-view").style.display = "none";
+}
+function hideOverlay() {
+  document.getElementById("overlay").style.display = "none";
+  switchMode(currentMode);
+}
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll(".mode-tab").forEach((t, i) => {
+    t.classList.toggle("active", (i === 0 && mode === "shop") || (i === 1 && mode === "manage"));
+  });
+  document.getElementById("shop-view").style.display = mode === "shop" ? "block" : "none";
+  document.getElementById("manage-view").style.display = mode === "manage" ? "block" : "none";
+  render();
+}
+
+function fuzzyMatch(input, masterName) {
+  const a = input.toLowerCase().trim();
+  const b = masterName.toLowerCase().trim();
+  if (a === b) return true;
+  if (b.includes(a) || a.includes(b)) return true;
+  const aW = a.split(/\s+/), bW = b.split(/\s+/);
+  return aW.some(w => w.length > 2 && bW.some(bw => bw.includes(w) || w.includes(bw)));
+}
+function findMasterMatch(itemName) {
+  return master.find(m => fuzzyMatch(itemName, m.name)) || null;
+}
+
+function render() {
+  if (currentMode === "shop") renderShop();
+  else renderManage();
+}
+
+function renderShop() {
+  const known = [], unknown = [];
+  for (const item of weekList) {
+    const m = findMasterMatch(item.name);
+    if (m) known.push({ ...item, shop: m.shop, position: m.position });
+    else unknown.push(item);
+  }
+  const byShop = {};
+  for (const item of known) {
+    if (!byShop[item.shop]) byShop[item.shop] = [];
+    byShop[item.shop].push(item);
+  }
+  Object.values(byShop).forEach(arr => arr.sort((a, b) => a.position - b.position));
+
+  const total = weekList.length;
+  const done = weekList.filter(w => w.checked).length;
+
+  document.getElementById("empty").style.display = total === 0 ? "block" : "none";
+
+  const pw = document.getElementById("progress-wrap");
+  pw.style.display = total > 0 ? "block" : "none";
+  document.getElementById("progress-fill").style.width = total > 0 ? (done/total*100)+"%" : "0%";
+  document.getElementById("progress-label").textContent =
+    done === total && total > 0 ? "✅ All done!" : `${done} of ${total} picked`;
+
+  const groupsEl = document.getElementById("shop-groups");
+  const shopNames = Object.keys(byShop).sort();
+  groupsEl.innerHTML = shopNames.map(shopName => {
+    const items = byShop[shopName];
+    return `
+      <div class="shop-group-header">
+        <span class="shop-group-name">🏪 ${shopName}</span>
+        <span class="shop-group-count">${items.length}</span>
+      </div>
+      ${items.map(item => `
+        <div class="item ${item.checked ? 'done' : ''}" id="item-${item.id}">
+          <div class="checkbox ${item.checked ? 'checked' : ''}" onclick="toggleCheck('${item.id}', ${item.checked})">
+            ${item.checked ? "✓" : ""}
+          </div>
+          <div class="item-body">
+            <span class="item-name ${item.checked ? 'struck' : ''}">${item.name}</span>
+            <span class="item-num">#${item.position + 1}</span>
+          </div>
+          <button class="btn-remove" onclick="removeFromWeek('${item.id}')">×</button>
+        </div>
+      `).join("")}
+    `;
+  }).join("");
+
+  const unknownHeader = document.getElementById("unknown-header");
+  const unknownEl = document.getElementById("unknown-items");
+  unknownHeader.style.display = unknown.length > 0 ? "block" : "none";
+  unknownEl.innerHTML = unknown.map(item => `
+    <div class="item ${item.checked ? 'done' : ''}" id="item-${item.id}" style="border-left:3px solid #f39c12">
+      <div class="checkbox ${item.checked ? 'checked' : ''}" onclick="toggleCheck('${item.id}', ${item.checked})">
+        ${item.checked ? "✓" : ""}
+      </div>
+      <div class="item-body">
+        <span class="item-name ${item.checked ? 'struck' : ''}">${item.name}</span>
+        <button class="btn-add-map" onclick="mapUnknownItem('${item.id}', '${item.name.replace(/'/g, "\\'")}')">+ Assign shop</button>
+      </div>
+      <button class="btn-remove" onclick="removeFromWeek('${item.id}')">×</button>
+    </div>
+  `).join("");
+
+  const actions = document.getElementById("actions");
+  actions.style.display = total > 0 ? "flex" : "none";
+  const btnDone = document.getElementById("btn-clear-done");
+  btnDone.style.display = done > 0 ? "inline-block" : "none";
+  btnDone.textContent = `Remove done (${done})`;
+  const btnFlagged = document.getElementById("btn-clear-flagged");
+  btnFlagged.style.display = unknown.length > 0 ? "inline-block" : "none";
+  btnFlagged.textContent = `Clear flagged (${unknown.length})`;
+}
+
+function renderManage() {
+  const tabsWrap = document.getElementById("shop-tabs-wrap");
+  tabsWrap.innerHTML = shops.map(s => `
+    <button class="shop-tab ${s === currentManageShop ? 'active' : ''}" onclick="selectManageShop('${s.replace(/'/g, "\\'")}')">${s}</button>
+  `).join("") + `<button class="shop-tab add-shop" onclick="openShopModal()">+ Add shop</button>`;
+
+  const shopItems = master.filter(m => m.shop === currentManageShop).sort((a, b) => a.position - b.position);
+  document.getElementById("manage-shop-title").textContent = currentManageShop + " map";
+  document.getElementById("master-count").textContent = shopItems.length + " items";
+
+  document.getElementById("master-list").innerHTML = shopItems.map((item, idx) => `
+    <div class="master-item">
+      <span class="master-num">${idx + 1}</span>
+      <span class="master-name">${item.name}</span>
+      <div class="move-btns">
+        <button class="btn-move" onclick="moveItem('${item.id}', -1)" ${idx === 0 ? 'disabled style="opacity:0.2"' : ''}>▲</button>
+        <button class="btn-move" onclick="moveItem('${item.id}', 1)" ${idx === shopItems.length - 1 ? 'disabled style="opacity:0.2"' : ''}>▼</button>
+      </div>
+      <button class="btn-move-after" onclick="openMoveAfterModal('${item.id}')">Move</button>
+      <button class="btn-master-remove" onclick="removeFromMaster('${item.id}')">×</button>
+    </div>
+  `).join("");
+}
+
+function selectManageShop(shopName) {
+  currentManageShop = shopName;
+  renderManage();
+}
+
+async function moveItem(id, dir) {
+  id = Number(id);
+  const shopItems = master.filter(m => m.shop === currentManageShop).sort((a, b) => a.position - b.position);
+  const idx = shopItems.findIndex(i => i.id === id);
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= shopItems.length) return;
+  [shopItems[idx], shopItems[newIdx]] = [shopItems[newIdx], shopItems[idx]];
+  shopItems.forEach((it, i) => { it.position = i; });
+  master = master.map(m => {
+    const updated = shopItems.find(s => s.id === m.id);
+    return updated ? { ...m, position: updated.position } : m;
+  });
+  renderManage();
+  Promise.all([
+    dbUpdate("master_items", shopItems[idx].id, { position: shopItems[idx].position }),
+    dbUpdate("master_items", shopItems[newIdx].id, { position: shopItems[newIdx].position })
+  ]).catch(() => {});
+}
+
+async function removeFromMaster(id) {
+  id = Number(id);
+  master = master.filter(m => Number(m.id) !== id);
+  rebuildShopList();
+  renderManage();
+  dbDelete("master_items", id).catch(() => {});
+}
+
+async function addToWeek() {
+  const input = document.getElementById("shop-input");
+  const parts = input.value.split(/[,\n]+/).map(s => s.trim()).filter(Boolean);
+  if (!parts.length) return;
+  const existing = new Set(weekList.map(w => w.name.toLowerCase()));
+  const newNames = parts.filter(p => !existing.has(p.toLowerCase()));
+  if (!newNames.length) { toast("Already on the list"); return; }
+  input.value = "";
+  try {
+    for (const name of newNames) {
+      const inserted = await dbInsertOne("week_items", { name, checked: false });
+      weekList.push(inserted[0]);
+    }
+    toast(`Added ${newNames.length} item${newNames.length !== 1 ? "s" : ""}`);
+    render();
+  } catch { toast("Failed to add"); }
+}
+
+function toggleCheck(id, wasChecked) {
+  const newVal = !wasChecked;
+  weekList = weekList.map(w => w.id === id ? { ...w, checked: newVal } : w);
+  const itemEl = document.getElementById("item-" + id);
+  if (itemEl) {
+    const cb = itemEl.querySelector(".checkbox");
+    const name = itemEl.querySelector(".item-name");
+    if (newVal) {
+      itemEl.classList.add("done"); cb.classList.add("checked"); cb.textContent = "✓"; name.classList.add("struck");
+    } else {
+      itemEl.classList.remove("done"); cb.classList.remove("checked"); cb.textContent = ""; name.classList.remove("struck");
+    }
+    cb.setAttribute("onclick", "toggleCheck('" + id + "', " + newVal + ")");
+  }
+  updateProgressAndActions();
+  dbUpdate("week_items", id, { checked: newVal }).catch(() => {});
+}
+
+function updateProgressAndActions() {
+  const total = weekList.length;
+  const done = weekList.filter(w => w.checked).length;
+  const unknownCount = weekList.filter(w => !findMasterMatch(w.name)).length;
+  const pw = document.getElementById("progress-wrap");
+  pw.style.display = total > 0 ? "block" : "none";
+  document.getElementById("progress-fill").style.width = total > 0 ? (done/total*100)+"%" : "0%";
+  document.getElementById("progress-label").textContent =
+    done === total && total > 0 ? "✅ All done!" : done + " of " + total + " picked";
+  const btnDone = document.getElementById("btn-clear-done");
+  btnDone.style.display = done > 0 ? "inline-block" : "none";
+  btnDone.textContent = "Remove done (" + done + ")";
+  const btnFlagged = document.getElementById("btn-clear-flagged");
+  btnFlagged.style.display = unknownCount > 0 ? "inline-block" : "none";
+  btnFlagged.textContent = "Clear flagged (" + unknownCount + ")";
+  document.getElementById("actions").style.display = total > 0 ? "flex" : "none";
+}
+
+function removeFromWeek(id) {
+  weekList = weekList.filter(w => w.id !== id);
+  // Remove from DOM instantly without full re-render
+  const el = document.getElementById("item-" + id);
+  if (el) {
+    // Also remove shop header if this was the last item in that group
+    const prevEl = el.previousElementSibling;
+    el.remove();
+    if (prevEl && prevEl.classList.contains("shop-group-header")) {
+      // Check if next sibling is another header or end — if so remove the header too
+      const nextEl = prevEl.nextElementSibling;
+      if (!nextEl || nextEl.classList.contains("shop-group-header") || nextEl.id === "unknown-header") {
+        prevEl.remove();
+      }
+    }
+  }
+  updateProgressAndActions();
+  dbDelete("week_items", id).catch(() => {});
+}
+
+async function clearDone() {
+  const ids = weekList.filter(w => w.checked).map(w => w.id);
+  weekList = weekList.filter(w => !w.checked);
+  render();
+  try { await Promise.all(ids.map(id => dbDelete("week_items", id))); toast("Cleared done items"); } catch {}
+}
+
+async function clearFlagged() {
+  const ids = weekList.filter(w => !findMasterMatch(w.name)).map(w => w.id);
+  if (!ids.length) return;
+  weekList = weekList.filter(w => findMasterMatch(w.name));
+  render();
+  try { await Promise.all(ids.map(id => dbDelete("week_items", id))); toast("Cleared flagged items"); } catch {}
+}
+
+async function clearAll() {
+  const ids = weekList.map(w => w.id);
+  weekList = [];
+  render();
+  try { await Promise.all(ids.map(id => dbDelete("week_items", id))); toast("List cleared"); } catch {}
+}
+
+let itemModalMode = "add";
+let itemModalUnknownId = null;
+let itemModalSelectedShop = null;
+let itemModalInsertAfterId = null;
+
+function openAddItemModal() {
+  itemModalMode = "add";
+  itemModalUnknownId = null;
+  itemModalSelectedShop = currentManageShop || shops[0] || DEFAULT_SHOP;
+  itemModalInsertAfterId = null;
+  document.getElementById("item-modal-title").textContent = "Add item";
+  document.getElementById("item-modal-name").value = "";
+  document.getElementById("item-modal-name").disabled = false;
+  renderItemModalShops();
+  renderItemModalInsertList();
+  showModal("item-modal");
+}
+
+function mapUnknownItem(weekItemId, name) {
+  itemModalMode = "map";
+  itemModalUnknownId = weekItemId;
+  itemModalSelectedShop = shops[0] || DEFAULT_SHOP;
+  itemModalInsertAfterId = null;
+  document.getElementById("item-modal-title").textContent = "Assign shop";
+  document.getElementById("item-modal-name").value = name;
+  document.getElementById("item-modal-name").disabled = true;
+  renderItemModalShops();
+  renderItemModalInsertList();
+  showModal("item-modal");
+}
+
+function renderItemModalShops() {
+  document.getElementById("item-modal-shops").innerHTML = shops.map(s => `
+    <button type="button" class="shop-choice ${s === itemModalSelectedShop ? 'selected' : ''}" onclick="selectItemModalShop('${s.replace(/'/g, "\\'")}')">${s}</button>
+  `).join("");
+}
+
+function selectItemModalShop(shopName) {
+  itemModalSelectedShop = shopName;
+  itemModalInsertAfterId = null;
+  renderItemModalShops();
+  renderItemModalInsertList();
+}
+
+function renderItemModalInsertList() {
+  const items = master.filter(m => m.shop === itemModalSelectedShop).sort((a, b) => a.position - b.position);
+  let html = `<div class="insert-option at-top ${itemModalInsertAfterId === null ? 'selected' : ''}" onclick="selectInsertAfter(null)">— At the very top —</div>`;
+  html += items.map(it => `
+    <div class="insert-option ${itemModalInsertAfterId == it.id ? 'selected' : ''}" onclick="selectInsertAfter(${it.id})">${it.name}</div>
+  `).join("");
+  document.getElementById("item-modal-insert-list").innerHTML = html;
+}
+
+function selectInsertAfter(id) {
+  itemModalInsertAfterId = id === null ? null : Number(id);
+  renderItemModalInsertList();
+}
+
+async function saveItemModal() {
+  const name = document.getElementById("item-modal-name").value.trim();
+  if (!name) { toast("Enter an item name"); return; }
+  if (!itemModalSelectedShop) { toast("Pick a shop"); return; }
+
+  const shopItems = master.filter(m => m.shop === itemModalSelectedShop).sort((a, b) => a.position - b.position);
+
+  // Find insert index cleanly — no floats, no negatives
+  let insertIdx;
+  if (itemModalInsertAfterId === null) {
+    insertIdx = 0;
+  } else {
+    const afterIdx = shopItems.findIndex(i => i.id == itemModalInsertAfterId);
+    insertIdx = afterIdx === -1 ? shopItems.length : afterIdx + 1;
+  }
+
+  // Close modal instantly — don't wait for network
+  closeItemModal();
+  toast(itemModalMode === "map" ? `Assigning "${name}"…` : `Adding "${name}"…`);
+
+  try {
+    const inserted = await dbInsertOne("master_items", { name, position: 999999, shop: itemModalSelectedShop });
+    const newItem = { ...inserted[0], shop: itemModalSelectedShop };
+    master.push(newItem);
+
+    const updatedShopItems = master.filter(m => m.shop === itemModalSelectedShop).sort((a, b) => a.position - b.position);
+    const newIdx = updatedShopItems.findIndex(i => i.id == newItem.id);
+    updatedShopItems.splice(newIdx, 1);
+    updatedShopItems.splice(insertIdx, 0, newItem);
+
+    // Renumber locally first so UI is instant
+    updatedShopItems.forEach((it, i) => { it.position = i; });
+    rebuildShopList();
+    if (!shops.includes(currentManageShop)) currentManageShop = itemModalSelectedShop;
+    render();
+    toast(itemModalMode === "map" ? `"${name}" mapped to ${itemModalSelectedShop}` : `"${name}" added to ${itemModalSelectedShop}`);
+
+    // Save positions to Supabase in background
+    Promise.all(updatedShopItems.map(it => dbUpdate("master_items", it.id, { position: it.position }))).catch(() => {});
+  } catch (e) {
+    toast("Failed to save: " + e.message);
+  }
+}
+
+function closeItemModal() {
+  hideModal("item-modal");
+}
+
+function openShopModal() {
+  document.getElementById("shop-modal-name").value = "";
+  showModal("shop-modal");
+}
+function closeShopModal() { hideModal("shop-modal"); }
+
+function saveNewShop() {
+  const name = document.getElementById("shop-modal-name").value.trim();
+  if (!name) { toast("Enter a shop name"); return; }
+  if (shops.includes(name)) { toast("Shop already exists"); closeShopModal(); return; }
+  shops.push(name);
+  currentManageShop = name;
+  closeShopModal();
+  toast(`"${name}" shop added — add items to it now`);
+  renderManage();
+}
+
+let modalOpen = false;
+
+function showModal(id) {
+  modalOpen = true;
+  const overlay = document.getElementById(id + "-overlay");
+  const modal = document.getElementById(id);
+  if (overlay) overlay.style.display = "block";
+  if (modal) { modal.style.display = "flex"; modal.style.flexDirection = "column"; }
+}
+function hideModal(id) {
+  modalOpen = false;
+  const overlay = document.getElementById(id + "-overlay");
+  const modal = document.getElementById(id);
+  if (overlay) overlay.style.display = "none";
+  if (modal) modal.style.display = "none";
+}
+function closeBtn(fn, event) {
+  event.stopPropagation();
+  fn();
+}
+
+let pickedItems = new Set();
+let pickerFilter = "";
+
+function openPicker() {
+  pickedItems = new Set();
+  pickerFilter = "";
+  document.getElementById("picker-search").value = "";
+  showModal("picker-modal");
+  renderPicker();
+  setTimeout(() => document.getElementById("picker-search").focus(), 100);
+}
+function closePicker() { pickedItems = new Set(); hideModal("picker-modal"); }
+function filterPicker(val) { pickerFilter = val.toLowerCase(); renderPicker(); }
+
+function renderPicker() {
+  const existing = new Set(weekList.map(w => w.name.toLowerCase().trim()));
+  const filtered = master.filter(m =>
+    !existing.has(m.name.toLowerCase().trim()) &&
+    (pickerFilter === "" || m.name.toLowerCase().includes(pickerFilter))
+  );
+  const byShop = {};
+  filtered.forEach(m => {
+    const s = m.shop || "Asda";
+    if (!byShop[s]) byShop[s] = [];
+    byShop[s].push(m);
+  });
+  const grid = document.getElementById("picker-grid");
+  grid.innerHTML = "";
+  Object.keys(byShop).sort().forEach(shopName => {
+    const label = document.createElement("div");
+    label.style.cssText = "width:100%;font-size:11px;font-weight:700;color:#999;text-transform:uppercase;padding:10px 2px 4px;flex-basis:100%";
+    label.textContent = shopName;
+    grid.appendChild(label);
+    byShop[shopName].forEach(m => {
+      const el = document.createElement("div");
+      el.className = "picker-item" + (pickedItems.has(m.name) ? " selected" : "");
+      el.textContent = m.name;
+      el.onclick = () => togglePick(m.name, el);
+      grid.appendChild(el);
+    });
+  });
+  updatePickerBtn();
+  updatePickerBtn();
+}
+function togglePick(name, el) {
+  if (pickedItems.has(name)) {
+    pickedItems.delete(name);
+    if (el) el.classList.remove("selected");
+  } else {
+    pickedItems.add(name);
+    if (el) el.classList.add("selected");
+  }
+  updatePickerBtn();
+}
+function updatePickerBtn() {
+  const count = pickedItems.size;
+  document.getElementById("btn-picker-add").textContent = count > 0 ? "Add " + count + " item" + (count !== 1 ? "s" : "") : "Add selected items";
+}
+async function addPickedItems() {
+  if (pickedItems.size === 0) return;
+  const names = [...pickedItems];
+  closePicker();
+  toast("Adding " + names.length + " item" + (names.length !== 1 ? "s" : "") + "…");
+  try {
+    for (const name of names) {
+      const inserted = await dbInsertOne("week_items", { name, checked: false });
+      if (inserted && inserted[0]) weekList.push(inserted[0]);
+    }
+    toast("Added " + names.length + " item" + (names.length !== 1 ? "s" : ""));
+    render();
+  } catch (e) { toast("Failed to add: " + e.message); }
+}
+
+let recognition = null;
+let voiceActive = false;
+
+function toggleVoice() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    toast("Voice not supported on this browser"); return;
+  }
+  if (voiceActive) { stopVoice(); return; }
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = "en-GB";
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => {
+    voiceActive = true;
+    document.getElementById("btn-voice").classList.add("voice-active");
+    document.getElementById("btn-voice").textContent = "🎤 Listening…";
+  };
+  recognition.onresult = (e) => {
+    const transcript = e.results[0][0].transcript.toLowerCase().trim();
+    let parts = transcript.split(/\band\b|,/i).map(s => s.trim()).filter(Boolean);
+    if (parts.length === 1 && master.length > 0) {
+      const matched = [];
+      let remaining = transcript;
+      const sorted = [...master].sort((a, b) => b.name.length - a.name.length);
+      for (const m of sorted) {
+        const name = m.name.toLowerCase();
+        if (remaining.includes(name)) { matched.push(m.name); remaining = remaining.replace(name, "").trim(); }
+      }
+      if (matched.length > 1) parts = matched;
+    }
+    document.getElementById("shop-input").value = parts.join(", ");
+    stopVoice();
+    addToWeek();
+  };
+  recognition.onerror = () => { stopVoice(); toast("Couldn't hear that, try again"); };
+  recognition.onend = () => stopVoice();
+  recognition.start();
+}
+function stopVoice() {
+  voiceActive = false;
+  if (recognition) { try { recognition.stop(); } catch {} recognition = null; }
+  const btn = document.getElementById("btn-voice");
+  btn.classList.remove("voice-active");
+  btn.textContent = "🎤 Voice";
+}
+
+// ── Move After ──
+let moveAfterItemId = null;
+
+function openMoveAfterModal(id) {
+  moveAfterItemId = Number(id);
+  const item = master.find(m => m.id === moveAfterItemId);
+  document.getElementById("move-after-title").textContent = "Move \"" + (item ? item.name : "") + "\" after…";
+  document.getElementById("move-after-search").value = "";
+  renderMoveAfterList("");
+  showModal("move-after-modal");
+}
+
+function closeMoveAfterModal() {
+  moveAfterItemId = null;
+  hideModal("move-after-modal");
+}
+
+function filterMoveAfterList(val) {
+  renderMoveAfterList(val.toLowerCase());
+}
+
+function renderMoveAfterList(filter) {
+  const shopItems = master
+    .filter(m => m.shop === currentManageShop && m.id !== moveAfterItemId)
+    .sort((a, b) => a.position - b.position);
+  const filtered = filter ? shopItems.filter(it => it.name.toLowerCase().includes(filter)) : shopItems;
+  let html = `<div class="insert-option at-top" onclick="executeMoveAfter(null)">— At the very top —</div>`;
+  html += filtered.map(it => `<div class="insert-option" onclick="executeMoveAfter(${it.id})">${it.name}</div>`).join("");
+  document.getElementById("move-after-list").innerHTML = html;
+}
+
+async function executeMoveAfter(afterId) {
+  if (!moveAfterItemId) return;
+  const shopItems = master.filter(m => m.shop === currentManageShop).sort((a, b) => a.position - b.position);
+  const itemIdx = shopItems.findIndex(i => i.id == moveAfterItemId);
+  if (itemIdx === -1) { closeMoveAfterModal(); return; }
+  const [movedItem] = shopItems.splice(itemIdx, 1);
+  if (afterId === null) {
+    shopItems.unshift(movedItem);
+  } else {
+    const afterIdx = shopItems.findIndex(i => i.id == afterId);
+    shopItems.splice(afterIdx + 1, 0, movedItem);
+  }
+  shopItems.forEach((it, i) => { it.position = i; });
+  master = master.map(m => {
+    const updated = shopItems.find(s => s.id === m.id);
+    return updated ? { ...m, position: updated.position } : m;
+  });
+  closeMoveAfterModal();
+  renderManage();
+  toast("Item moved ✓");
+  // Save in background
+  Promise.all(shopItems.map(it => dbUpdate("master_items", it.id, { position: it.position }))).catch(() => {});
+}
+
+document.getElementById("shop-input").addEventListener("keydown", e => { if (e.key === "Enter") addToWeek(); });
+document.getElementById("item-modal-name").addEventListener("keydown", e => { if (e.key === "Enter" && !e.target.disabled) saveItemModal(); });
+document.getElementById("shop-modal-name").addEventListener("keydown", e => { if (e.key === "Enter") saveNewShop(); });
+
+init();
+</script>
+</body>
+</html>
